@@ -55,10 +55,18 @@ def test_projected_worst_gap_uses_neighbours() -> None:
     ]
     # Candidate noon on day 10: prev gap = 14:00 day9 → 14:00 day10 = 24h ok;
     # next gap = 22:00 day10 → 06:00 day11 = 8h warning. Worst = warning.
-    sev = projected_worst_gap(existing, candidate_kind=ShiftKind.NOON, candidate_date=date(2026, 6, 10))
+    sev = projected_worst_gap(
+        existing,
+        candidate_kind=ShiftKind.NOON,
+        candidate_date=date(2026, 6, 10),
+    )
     assert sev == RestSeverity.WARNING
 
 
 def test_projected_worst_gap_no_neighbours_returns_none() -> None:
-    sev = projected_worst_gap([], candidate_kind=ShiftKind.MORNING, candidate_date=date(2026, 6, 10))
+    sev = projected_worst_gap(
+        [],
+        candidate_kind=ShiftKind.MORNING,
+        candidate_date=date(2026, 6, 10),
+    )
     assert sev is None

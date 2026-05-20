@@ -1,7 +1,8 @@
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date as date_type, datetime, timedelta, timezone
-from enum import Enum, StrEnum
-from typing import Mapping, Sequence
+from datetime import date as date_type
+from datetime import datetime, timedelta, timezone
+from enum import StrEnum
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Jerusalem")
@@ -100,7 +101,7 @@ def is_eligible(
     return EligibilityResult(True, None)
 
 
-class RestSeverity(str, Enum):
+class RestSeverity(StrEnum):
     CRITICAL = "critical"
     WARNING = "warning"
     OK = "ok"
@@ -147,7 +148,7 @@ def build_rest_chain(items: Sequence[tuple[ShiftKind, date_type]]) -> RestChain:
     expanded.sort(key=lambda s: s.start)
 
     gaps: list[ChainGap] = []
-    for prev, nxt in zip(expanded, expanded[1:]):
+    for prev, nxt in zip(expanded, expanded[1:], strict=False):
         h = rest_gap_hours(prev.end, nxt.start)
         gaps.append(ChainGap(hours=h, severity=classify_gap_hours(h)))
     return RestChain(shifts=expanded, gaps=gaps)
@@ -159,7 +160,10 @@ def projected_worst_gap(
     candidate_kind: ShiftKind,
     candidate_date: date_type,
 ) -> RestSeverity | None:
-    """Compute worst severity of (prev→candidate) and (candidate→next) gaps; None if no neighbours."""
+    """Compute worst severity of (prev→candidate) and (candidate→next) gaps.
+
+    Returns ``None`` if the candidate has no neighbouring shifts in ``existing``.
+    """
     cand_start, cand_end = shift_window(candidate_date, candidate_kind)
     prev_end: datetime | None = None
     next_start: datetime | None = None
