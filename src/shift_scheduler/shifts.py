@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
-from enum import StrEnum
+from enum import Enum, StrEnum
 from typing import Mapping, Sequence
 from zoneinfo import ZoneInfo
 
@@ -98,3 +98,85 @@ def is_eligible(
         return EligibilityResult(False, "arrival_morning")
 
     return EligibilityResult(True, None)
+
+
+class RestSeverity(str, Enum):
+    CRITICAL = "critical"
+    WARNING = "warning"
+    OK = "ok"
+
+
+def classify_gap_hours(hours: float) -> RestSeverity:
+    if hours < 8:
+        return RestSeverity.CRITICAL
+    if hours == 8:
+        return RestSeverity.WARNING
+    return RestSeverity.OK
+
+
+def rest_gap_hours(prev_end: datetime, next_start: datetime) -> float:
+    return (next_start - prev_end).total_seconds() / 3600.0
+
+
+@dataclass(frozen=True, slots=True)
+class ChainShift:
+    kind: ShiftKind
+    date: date_type
+    start: datetime
+    end: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ChainGap:
+    hours: float
+    severity: RestSeverity
+
+
+@dataclass(frozen=True, slots=True)
+class RestChain:
+    shifts: list[ChainShift]
+    gaps: list[ChainGap]
+
+
+def build_rest_chain(items: Sequence[tuple[ShiftKind, date_type]]) -> RestChain:
+    """Given (kind, date) pairs, build a sorted chain plus the gaps between them."""
+    expanded: list[ChainShift] = []
+    for kind, d in items:
+        start, end = shift_window(d, kind)
+        expanded.append(ChainShift(kind=kind, date=d, start=start, end=end))
+    expanded.sort(key=lambda s: s.start)
+
+    gaps: list[ChainGap] = []
+    for prev, nxt in zip(expanded, expanded[1:]):
+        h = rest_gap_hours(prev.end, nxt.start)
+        gaps.append(ChainGap(hours=h, severity=classify_gap_hours(h)))
+    return RestChain(shifts=expanded, gaps=gaps)
+
+
+def projected_worst_gap(
+    existing: Sequence[tuple[ShiftKind, date_type]],
+    *,
+    candidate_kind: ShiftKind,
+    candidate_date: date_type,
+) -> RestSeverity | None:
+    """Compute worst severity of (prev→candidate) and (candidate→next) gaps; None if no neighbours."""
+    cand_start, cand_end = shift_window(candidate_date, candidate_kind)
+    prev_end: datetime | None = None
+    next_start: datetime | None = None
+    for kind, d in existing:
+        s, e = shift_window(d, kind)
+        if e <= cand_start and (prev_end is None or e > prev_end):
+            prev_end = e
+        if s >= cand_end and (next_start is None or s < next_start):
+            next_start = s
+
+    severities: list[RestSeverity] = []
+    if prev_end is not None:
+        severities.append(classify_gap_hours(rest_gap_hours(prev_end, cand_start)))
+    if next_start is not None:
+        severities.append(classify_gap_hours(rest_gap_hours(cand_end, next_start)))
+    if not severities:
+        return None
+
+    order = {RestSeverity.CRITICAL: 0, RestSeverity.WARNING: 1, RestSeverity.OK: 2}
+    return min(severities, key=lambda s: order[s])
