@@ -1,0 +1,31 @@
+<div class="picker" id="picker-pane"
+     x-data="picker"
+     @keydown.escape.window="open=false"
+     @click.outside="open=false">
+  <input type="search" name="q" placeholder="חיפוש שם…" x-model="query"
+         hx-get="/shift/{{ shift_date }}/{{ kind }}/candidates"
+         hx-trigger="keyup changed delay:200ms"
+         hx-target="#picker-pane" hx-swap="outerHTML"
+         hx-include="[name='slot'],[name='position']">
+  <input type="hidden" name="slot" value="{{ slot }}">
+  <input type="hidden" name="position" value="{{ position }}">
+  {% for c in candidates %}
+    <form method="post" action="/shift/{{ shift_date }}/{{ kind }}/assign"
+          hx-post="/shift/{{ shift_date }}/{{ kind }}/assign"
+          hx-target="#cell-{{ shift_date }}-{{ kind }}" hx-swap="outerHTML"
+          class="candidate">
+      <input type="hidden" name="slot" value="{{ slot }}">
+      <input type="hidden" name="position" value="{{ position }}">
+      <input type="hidden" name="person_id" value="{{ c.person.id }}">
+      <button type="submit" class="candidate-btn">
+        {{ c.person.name }}
+        <small>{{ "מפקד/ת" if c.person.role == "commander" else "מפעיל/ה" }}</small>
+        {% if c.severity %}
+          <span class="chip gap {{ c.severity.value }} gap-projection">{{ c.severity.value }}</span>
+        {% endif %}
+      </button>
+    </form>
+  {% else %}
+    <p>אין מועמדים מתאימים</p>
+  {% endfor %}
+</div>

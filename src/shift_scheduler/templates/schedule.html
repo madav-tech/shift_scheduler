@@ -24,4 +24,44 @@
   </section>
   {% include "components/sidebar.html" %}
 </div>
+
+<div id="picker-host" hidden></div>
+<script>
+  document.addEventListener("click", function (ev) {
+    const trigger = ev.target.closest(".picker-trigger");
+    if (!trigger) return;
+    ev.preventDefault();
+    const { date, kind, slot, position } = trigger.dataset;
+    const url = `/shift/${date}/${kind}/candidates?slot=${slot}&position=${position}`;
+    fetch(url, { credentials: "same-origin" })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        const host = document.getElementById("picker-host");
+        host.innerHTML = html;
+        host.hidden = false;
+        const rect = trigger.getBoundingClientRect();
+        const pane = document.getElementById("picker-pane");
+        if (pane) {
+          pane.style.position = "absolute";
+          pane.style.top = (window.scrollY + rect.bottom + 4) + "px";
+          pane.style.insetInlineStart = (rect.left + window.scrollX) + "px";
+          if (window.htmx) { window.htmx.process(pane); }
+        }
+        document.addEventListener("click", function close(e) {
+          if (!e.target.closest("#picker-pane") && !e.target.closest(".picker-trigger")) {
+            host.hidden = true;
+            host.innerHTML = "";
+            document.removeEventListener("click", close);
+          }
+        });
+        document.addEventListener("keydown", function esc(e) {
+          if (e.key === "Escape") {
+            host.hidden = true;
+            host.innerHTML = "";
+            document.removeEventListener("keydown", esc);
+          }
+        });
+      });
+  });
+</script>
 {% endblock %}
