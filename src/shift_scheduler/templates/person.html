@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ person.name }}</h1>
+<form method="post" action="/roster/{{ person.id }}" class="stack">
+  <label>שם <input type="text" name="name" value="{{ person.name }}" required></label>
+  <label>תפקיד
+    <select name="role">
+      <option value="operator" {% if person.role == "operator" %}selected{% endif %}>מפעיל/ה</option>
+      <option value="commander" {% if person.role == "commander" %}selected{% endif %}>מפקד/ת</option>
+    </select>
+  </label>
+  <button type="submit" class="primary">שמור</button>
+</form>
+
+<form method="post" action="/roster/{{ person.id }}/archive" class="stack">
+  <button type="submit">ארכון</button>
+</form>
+
+<h2>תקופות נוכחות</h2>
+<form method="post" action="/roster/{{ person.id }}/periods" class="stack">
+  <label>מתאריך <input type="date" name="start_date" required></label>
+  <label>עד תאריך <input type="date" name="end_date" required></label>
+  <label>הערה <input type="text" name="note"></label>
+  <button type="submit" class="primary">הוסף תקופה</button>
+</form>
+
+<ul class="periods">
+  {% for pp in periods %}
+  <li>
+    {{ pp.start_date }} → {{ pp.end_date }}
+    {% if pp.note %}— {{ pp.note }}{% endif %}
+    <form method="post" action="/roster/{{ person.id }}/periods/{{ pp.id }}/delete" class="inline">
+      <button type="submit">מחק</button>
+    </form>
+  </li>
+  {% else %}
+  <li>אין תקופות נוכחות</li>
+  {% endfor %}
+</ul>
+{% endblock %}
