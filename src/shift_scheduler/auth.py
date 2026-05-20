@@ -4,7 +4,12 @@ from threading import Lock
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from fastapi import Depends, Request
+from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from starlette.exceptions import HTTPException
+
+from shift_scheduler.config import Settings, get_settings
 
 _hasher = PasswordHasher()
 
@@ -98,3 +103,49 @@ class LoginRateLimiter:
             if dq is None:
                 return False
             return len(dq) >= self.max_failures
+
+
+SESSION_COOKIE_NAME = "ss_session"
+
+
+def client_ip(request: Request) -> str:
+    cf = request.headers.get("CF-Connecting-IP")
+    if cf:
+        return cf
+    if request.client is None:
+        return ""
+    return request.client.host
+
+
+class _RedirectToLogin(HTTPException):
+    def __init__(self) -> None:
+        super().__init__(status_code=302, detail="login required")
+
+
+def _current_subject(request: Request, settings: Settings) -> str | None:
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return None
+    try:
+        return verify_session(token, secret=settings.session_secret,
+                              max_age_seconds=settings.session_max_age_seconds)
+    except (SessionInvalid, SessionExpired):
+        return None
+
+
+def require_editor():
+    """FastAPI dependency: 302 to /login when not authenticated, otherwise pass through."""
+
+    def _dep(request: Request, settings: Settings = Depends(get_settings)) -> str:  # noqa: B008
+        sub = _current_subject(request, settings)
+        if sub is None:
+            raise _RedirectToLogin()
+        return sub
+
+    return Depends(_dep)
+
+
+def install_auth_exception_handler(app) -> None:
+    @app.exception_handler(_RedirectToLogin)
+    async def _handle(_request: Request, _exc: _RedirectToLogin):  # type: ignore[no-untyped-def]
+        return RedirectResponse(url="/login", status_code=302)
