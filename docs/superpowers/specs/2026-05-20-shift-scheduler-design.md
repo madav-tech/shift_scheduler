@@ -81,7 +81,7 @@ For a person with consecutive assigned shifts, the **rest gap** is the hours fro
               → shifts.<your-domain> (HTTPS)
 ```
 
-- **Single process**, managed by systemd. Listens on **port 5056** locally.
+- **Single process**, managed by systemd. Listens on **port 2323** locally.
 - **Cloudflare** terminates TLS at the edge, like the existing port-5055 app.
 - **Static assets** (Tailwind, HTMX, Alpine.js) bundled into the repo — no CDN required.
 - **No build step** — server-rendered HTML with HTMX/Alpine for interactivity.
@@ -259,8 +259,8 @@ shift_scheduler/
 
 ### 8.3 Run
 
-- **Dev**: `uv run uvicorn shift_scheduler.main:app --reload --port 5056`
-- **Prod**: systemd unit running `uv run uvicorn shift_scheduler.main:app --host 127.0.0.1 --port 5056 --workers 1`
+- **Dev**: `uv run uvicorn shift_scheduler.main:app --reload --port 2323`
+- **Prod**: systemd unit running `uv run uvicorn shift_scheduler.main:app --host 127.0.0.1 --port 2323 --workers 1`
 
 ### 8.4 Backups
 
