@@ -244,3 +244,43 @@ def assign(
     cell_html = _render_cell(request, view, d, kind_enum, edit_mode=True)
     sidebar_html = _render_sidebar_oob(request, view)
     return HTMLResponse(content=cell_html + sidebar_html)
+
+
+@router.post("/shift/{shift_date}/{kind}/unassign", response_class=HTMLResponse)
+def unassign(
+    shift_date: str,
+    kind: str,
+    request: Request,
+    slot: str = Form(...),
+    position: int = Form(...),
+    db: Session = Depends(get_db),  # noqa: B008
+    _=require_editor(),  # noqa: B008
+):
+    d = _parse_date(shift_date)
+    try:
+        kind_enum = ShiftKind(kind)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="kind") from e
+    if slot not in ("commander", "operator"):
+        raise HTTPException(status_code=400, detail="slot")
+
+    shift = db.execute(
+        select(Shift).where(Shift.date == d).where(Shift.kind == kind_enum.value)
+    ).scalar_one_or_none()
+    if shift is not None:
+        a = db.execute(
+            select(ShiftAssignment)
+            .where(ShiftAssignment.shift_id == shift.id)
+            .where(ShiftAssignment.slot == slot)
+            .where(ShiftAssignment.position == position)
+        ).scalar_one_or_none()
+        if a is not None:
+            db.delete(a)
+            db.commit()
+
+    span_start = d - timedelta(days=2)
+    span_end = d + timedelta(days=14)
+    view = build_schedule_view(db, start=span_start, end=span_end)
+    cell_html = _render_cell(request, view, d, kind_enum, edit_mode=True)
+    sidebar_html = _render_sidebar_oob(request, view)
+    return HTMLResponse(content=cell_html + sidebar_html)

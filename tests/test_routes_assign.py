@@ -59,3 +59,31 @@ def test_assign_rejects_double_booking_same_shift(client, settings) -> None:
     r = client.post("/shift/2026-06-10/noon/assign",
                     data={"slot": "operator", "position": "1", "person_id": str(pid)})
     assert r.status_code == 400
+
+
+def test_unassign_removes_row_and_returns_cell(client, settings) -> None:
+    _login(client, settings)
+    pid = _add(client, "דנה", "operator")
+    client.post("/shift/2026-06-10/noon/assign",
+                data={"slot": "operator", "position": "0", "person_id": str(pid)})
+    r = client.post("/shift/2026-06-10/noon/unassign",
+                    data={"slot": "operator", "position": "0"})
+    assert r.status_code == 200
+    assert "id=\"cell-2026-06-10-noon\"" in r.text
+    assert "דנה" not in r.text
+    assert "hx-swap-oob" in r.text
+
+
+def test_unassign_idempotent_when_empty(client, settings) -> None:
+    _login(client, settings)
+    r = client.post("/shift/2026-06-10/noon/unassign",
+                    data={"slot": "operator", "position": "0"})
+    assert r.status_code == 200
+    assert "id=\"cell-2026-06-10-noon\"" in r.text
+
+
+def test_unassign_requires_auth(client) -> None:
+    r = client.post("/shift/2026-06-10/noon/unassign",
+                    data={"slot": "operator", "position": "0"},
+                    follow_redirects=False)
+    assert r.status_code == 302

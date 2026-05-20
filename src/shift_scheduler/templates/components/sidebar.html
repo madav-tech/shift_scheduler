@@ -4,7 +4,8 @@
     <button type="button" class="toggle" id="sidebar-toggle" aria-label="כווץ">⇆</button>
   </header>
   <div class="body">
-    {% for row in view.sidebar_rows %}
+    {% set rendered_rows = view.sidebar_rows | selectattr('items') | list %}
+    {% for row in rendered_rows %}
       <div class="person-row" id="sidebar-person-{{ row.person.id }}">
         <div><strong>{{ row.person.name }}</strong>
           <small>{{ "מפקד/ת" if row.person.role == "commander" else "מפעיל/ה" }}</small>
