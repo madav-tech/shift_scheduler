@@ -1,0 +1,22 @@
+[Unit]
+Description=Shift Scheduler (FastAPI on port 2323)
+After=network.target
+
+[Service]
+Type=simple
+User=shifts
+Group=shifts
+WorkingDirectory=/opt/shift-scheduler
+EnvironmentFile=/etc/shift-scheduler.env
+ExecStart=/usr/local/bin/uv run uvicorn shift_scheduler.main:app --host 127.0.0.1 --port 2323 --workers 1
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
