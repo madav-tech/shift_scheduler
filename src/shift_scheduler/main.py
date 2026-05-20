@@ -59,6 +59,9 @@ def build_app() -> FastAPI:
     def root() -> RedirectResponse:
         return RedirectResponse(url="/schedule", status_code=302)
 
+    from shift_scheduler.routes import auth as auth_routes
+    app.include_router(auth_routes.router)
+
     @app.get("/schedule")
     def schedule_placeholder(request: Request):
         # Replaced in Task 22 with the real handler.

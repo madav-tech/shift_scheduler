@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login">
+  <h1>התחברות</h1>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login" class="stack">
+    <label>
+      סיסמה
+      <input type="password" name="password" autofocus required>
+    </label>
+    <button type="submit" class="primary">כניסה</button>
+  </form>
+</section>
+{% endblock %}
