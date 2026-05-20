@@ -67,7 +67,7 @@ For a person with consecutive assigned shifts, the **rest gap** is the hours fro
 │   ├── Public read routes                                │
 │   ├── Edit routes (session-gated)                       │
 │   ├── Cookie session auth, single shared password       │
-│   └── Jinja2 + Tailwind CSS                             │
+│   └── Jinja2 + hand-written CSS                         │
 └─────────────────────────────────────────────────────────┘
                         │ SQLAlchemy
                         ▼
@@ -83,8 +83,8 @@ For a person with consecutive assigned shifts, the **rest gap** is the hours fro
 
 - **Single process**, managed by systemd. Listens on **port 2323** locally.
 - **Cloudflare** terminates TLS at the edge, like the existing port-5055 app.
-- **Static assets** (Tailwind, HTMX, Alpine.js) bundled into the repo — no CDN required.
-- **No build step** — server-rendered HTML with HTMX/Alpine for interactivity.
+- **Static assets** (hand-written CSS, HTMX, Alpine.js) bundled into the repo — no CDN required.
+- **No build step** — server-rendered HTML with HTMX/Alpine for interactivity, plain CSS for styling.
 
 ## 4. Data model
 
