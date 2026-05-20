@@ -940,10 +940,11 @@ def test_night_window_crosses_midnight() -> None:
     assert end == datetime(2026, 6, 11, 6, 0, tzinfo=TZ)
 
 
-def test_dst_spring_forward_night_2026_03_27() -> None:
-    # IDT begins Friday before last Sunday of March at 02:00. 2026-03-27 night
-    # spans the spring-forward; elapsed real time is 7 hours, not 8.
-    start, end = shift_window(date(2026, 3, 27), ShiftKind.NIGHT)
+def test_dst_spring_forward_night_2026_03_26() -> None:
+    # IDT begins Friday 2026-03-27 at 02:00 IST → 03:00 IDT. The night that
+    # actually spans the spring-forward is the night of 2026-03-26 (Thursday
+    # 22:00 IST → Friday 06:00 IDT). Elapsed real time is 7 hours, not 8.
+    start, end = shift_window(date(2026, 3, 26), ShiftKind.NIGHT)
     assert (end - start).total_seconds() == 7 * 3600
 
 
@@ -970,7 +971,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'shift_scheduler.shifts
 `src/shift_scheduler/shifts.py`:
 
 ```python
-from datetime import date as date_type, datetime, timedelta
+from datetime import date as date_type, datetime, timedelta, timezone
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -991,11 +992,26 @@ _SHIFT_HOURS: dict[ShiftKind, tuple[int, int]] = {
 }
 
 
+def _to_fixed_offset(dt: datetime) -> datetime:
+    """Normalize a ZoneInfo-tagged datetime to its fixed UTC offset.
+
+    Python's ``datetime.__sub__`` short-circuits when both operands share the
+    *same* ``tzinfo`` object and returns the naive wall-clock delta — which
+    silently produces 8 h for shifts that actually span a DST transition.
+    Converting each endpoint to a fixed-offset ``timezone(...)`` keeps equality
+    against the original ``ZoneInfo`` value (aware-datetime ``==`` compares UTC
+    instants) while forcing subtraction down the UTC-difference path.
+    """
+    return dt.astimezone(timezone(dt.utcoffset() or timedelta(0)))
+
+
 def shift_window(d: date_type, kind: ShiftKind | str) -> tuple[datetime, datetime]:
     """Return (start_dt, end_dt) for the shift, both timezone-aware in Asia/Jerusalem.
 
     Wall-clock hours are 06–14 (morning), 14–22 (noon), 22–06 next day (night).
-    Around DST transitions the elapsed real time may differ from 8 wall hours.
+    Around DST transitions the elapsed real time may differ from 8 wall hours;
+    each endpoint is normalized to its fixed UTC offset so ``end - start``
+    yields true elapsed time rather than a wall-clock subtraction.
     """
     if isinstance(kind, str) and not isinstance(kind, ShiftKind):
         try:
@@ -1008,7 +1024,7 @@ def shift_window(d: date_type, kind: ShiftKind | str) -> tuple[datetime, datetim
     end_hour = (start_hour + 8) % 24
     start_dt = datetime(d.year, d.month, d.day, start_hour, 0, tzinfo=TZ)
     end_dt = datetime(end_date.year, end_date.month, end_date.day, end_hour, 0, tzinfo=TZ)
-    return start_dt, end_dt
+    return _to_fixed_offset(start_dt), _to_fixed_offset(end_dt)
 ```
 
 - [ ] **Step 4: Run tests — verify pass**
