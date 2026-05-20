@@ -4435,7 +4435,7 @@ git commit -m "feat: CLI set-password subcommand via click"
 **Files:**
 - Create: `deploy/shift-scheduler.service`
 - Create: `deploy/INSTALL.md`
-- Create: `README.md`
+- Modify: `README.md` (a 4-line placeholder was committed in Task 1 so `hatchling` could validate `pyproject.toml`'s `readme = "README.md"`; replace its contents wholesale here)
 - Test: `tests/test_deploy_files.py`
 
 - [ ] **Step 1: Write the failing test**
