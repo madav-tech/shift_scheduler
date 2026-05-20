@@ -1,5 +1,10 @@
+import json
+
+from sqlalchemy import select
+
 from shift_scheduler.auth import SESSION_COOKIE_NAME, hash_password, sign_session
 from shift_scheduler.config import Settings
+from shift_scheduler.models import EditLog
 
 
 def _login(client, settings: Settings) -> None:
@@ -170,3 +175,91 @@ def test_delete_period_removes_it(client, settings) -> None:
     assert r.status_code == 302
     after = client.get(f"/roster/{pid}")
     assert "2026-06-01" not in after.text
+
+
+def _audit_rows(engine_and_session) -> list[EditLog]:
+    _, SessionLocal = engine_and_session
+    with SessionLocal() as s:
+        return list(s.execute(select(EditLog).order_by(EditLog.id)).scalars().all())
+
+
+def test_roster_create_writes_audit(client, settings, engine_and_session) -> None:
+    _login(client, settings)
+    r = client.post(
+        "/roster",
+        data={"name": "אבי", "role": "operator"},
+        follow_redirects=False,
+    )
+    pid = int(r.headers["location"].rsplit("/", 1)[-1])
+    rows = _audit_rows(engine_and_session)
+    assert [row.action for row in rows] == ["person_create"]
+    payload = json.loads(rows[0].payload_json)
+    assert payload == {"person_id": pid, "name": "אבי", "role": "operator"}
+
+
+def test_person_update_writes_audit(client, settings, engine_and_session) -> None:
+    pid = _create_person(client, settings, name="א", role="operator")
+    client.post(
+        f"/roster/{pid}",
+        data={"name": "ב", "role": "commander"},
+        follow_redirects=False,
+    )
+    actions = [r.action for r in _audit_rows(engine_and_session)]
+    assert actions == ["person_create", "person_update"]
+
+
+def test_person_archive_writes_audit(client, settings, engine_and_session) -> None:
+    pid = _create_person(client, settings)
+    client.post(f"/roster/{pid}/archive", follow_redirects=False)
+    actions = [r.action for r in _audit_rows(engine_and_session)]
+    assert actions == ["person_create", "person_archive"]
+
+
+def test_period_create_writes_audit(client, settings, engine_and_session) -> None:
+    pid = _create_person(client, settings)
+    client.post(
+        f"/roster/{pid}/periods",
+        data={"start_date": "2026-06-01", "end_date": "2026-06-10", "note": "x"},
+    )
+    rows = _audit_rows(engine_and_session)
+    assert [r.action for r in rows] == ["person_create", "period_create"]
+    payload = json.loads(rows[-1].payload_json)
+    assert payload["person_id"] == pid
+    assert payload["start_date"] == "2026-06-01"
+    assert payload["end_date"] == "2026-06-10"
+    assert payload["note"] == "x"
+
+
+def test_period_update_writes_audit(client, settings, engine_and_session) -> None:
+    pid = _create_person(client, settings)
+    client.post(
+        f"/roster/{pid}/periods",
+        data={"start_date": "2026-06-01", "end_date": "2026-06-05"},
+    )
+    detail = client.get(f"/roster/{pid}")
+    import re
+    period_id = int(
+        re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1)
+    )
+    client.post(
+        f"/roster/{pid}/periods/{period_id}",
+        data={"start_date": "2026-06-02", "end_date": "2026-06-09"},
+    )
+    actions = [r.action for r in _audit_rows(engine_and_session)]
+    assert actions == ["person_create", "period_create", "period_update"]
+
+
+def test_period_delete_writes_audit(client, settings, engine_and_session) -> None:
+    pid = _create_person(client, settings)
+    client.post(
+        f"/roster/{pid}/periods",
+        data={"start_date": "2026-06-01", "end_date": "2026-06-05"},
+    )
+    detail = client.get(f"/roster/{pid}")
+    import re
+    period_id = int(
+        re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1)
+    )
+    client.post(f"/roster/{pid}/periods/{period_id}/delete")
+    actions = [r.action for r in _audit_rows(engine_and_session)]
+    assert actions == ["person_create", "period_create", "period_delete"]

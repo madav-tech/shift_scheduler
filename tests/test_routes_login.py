@@ -1,7 +1,20 @@
+import json
+
 import pytest
+from sqlalchemy import select
 
 from shift_scheduler.auth import SESSION_COOKIE_NAME, hash_password
 from shift_scheduler.config import Settings, get_settings
+from shift_scheduler.models import EditLog
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter():
+    from shift_scheduler.routes.auth import rate_limiter
+
+    rate_limiter._failures.clear()
+    yield
+    rate_limiter._failures.clear()
 
 
 @pytest.fixture
@@ -49,3 +62,34 @@ def test_rate_limiter_locks_after_5_failures(client, authed_settings) -> None:
     r = client.post("/login", data={"password": "hunter2"}, follow_redirects=False)
     assert r.status_code == 200
     assert "נעול" in r.text or "נסה שוב מאוחר" in r.text
+
+
+def _actions(engine_and_session) -> list[str]:
+    _, SessionLocal = engine_and_session
+    with SessionLocal() as s:
+        return [r.action for r in s.execute(select(EditLog).order_by(EditLog.id)).scalars().all()]
+
+
+def test_login_success_writes_audit(client, authed_settings, engine_and_session) -> None:
+    client.app.dependency_overrides[get_settings] = lambda: authed_settings
+    client.post("/login", data={"password": "hunter2"}, follow_redirects=False)
+    assert _actions(engine_and_session) == ["login_success"]
+
+
+def test_login_failed_writes_audit(client, authed_settings, engine_and_session) -> None:
+    client.app.dependency_overrides[get_settings] = lambda: authed_settings
+    client.post("/login", data={"password": "wrong"}, follow_redirects=False)
+    actions = _actions(engine_and_session)
+    assert actions == ["login_failed"]
+
+    _, SessionLocal = engine_and_session
+    with SessionLocal() as s:
+        row = s.execute(select(EditLog)).scalar_one()
+        assert json.loads(row.payload_json)["reason"] == "wrong_password"
+
+
+def test_logout_writes_audit(client, authed_settings, engine_and_session) -> None:
+    client.app.dependency_overrides[get_settings] = lambda: authed_settings
+    client.post("/login", data={"password": "hunter2"})
+    client.post("/logout", follow_redirects=False)
+    assert _actions(engine_and_session) == ["login_success", "logout"]

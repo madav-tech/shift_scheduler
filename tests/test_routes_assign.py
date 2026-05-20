@@ -1,5 +1,10 @@
+import json
+
+from sqlalchemy import select
+
 from shift_scheduler.auth import SESSION_COOKIE_NAME, hash_password, sign_session
 from shift_scheduler.config import Settings
+from shift_scheduler.models import EditLog
 
 
 def _login(client, settings: Settings) -> None:
@@ -87,3 +92,57 @@ def test_unassign_requires_auth(client) -> None:
                     data={"slot": "operator", "position": "0"},
                     follow_redirects=False)
     assert r.status_code == 302
+
+
+def _audit_actions(engine_and_session, action: str) -> list[EditLog]:
+    _, SessionLocal = engine_and_session
+    with SessionLocal() as s:
+        return list(
+            s.execute(select(EditLog).where(EditLog.action == action).order_by(EditLog.id))
+            .scalars()
+            .all()
+        )
+
+
+def test_assign_writes_audit_row(client, settings, engine_and_session) -> None:
+    _login(client, settings)
+    pid = _add(client, "דנה", "operator")
+    client.post("/shift/2026-06-10/noon/assign",
+                data={"slot": "operator", "position": "0", "person_id": str(pid)})
+    rows = _audit_actions(engine_and_session, "assign")
+    assert len(rows) == 1
+    payload = json.loads(rows[0].payload_json)
+    assert payload["shift_date"] == "2026-06-10"
+    assert payload["kind"] == "noon"
+    assert payload["slot"] == "operator"
+    assert payload["position"] == 0
+    assert payload["person_id"] == pid
+    assert isinstance(payload["assignment_id"], int)
+
+
+def test_unassign_writes_audit_row(client, settings, engine_and_session) -> None:
+    _login(client, settings)
+    pid = _add(client, "דנה", "operator")
+    client.post("/shift/2026-06-10/noon/assign",
+                data={"slot": "operator", "position": "0", "person_id": str(pid)})
+    client.post("/shift/2026-06-10/noon/unassign",
+                data={"slot": "operator", "position": "0"})
+    rows = _audit_actions(engine_and_session, "unassign")
+    assert len(rows) == 1
+    payload = json.loads(rows[0].payload_json)
+    assert payload["shift_date"] == "2026-06-10"
+    assert payload["kind"] == "noon"
+    assert payload["slot"] == "operator"
+    assert payload["position"] == 0
+    assert payload["removed_person_id"] == pid
+
+
+def test_unassign_empty_still_writes_audit_row(client, settings, engine_and_session) -> None:
+    _login(client, settings)
+    client.post("/shift/2026-06-10/noon/unassign",
+                data={"slot": "operator", "position": "0"})
+    rows = _audit_actions(engine_and_session, "unassign")
+    assert len(rows) == 1
+    payload = json.loads(rows[0].payload_json)
+    assert payload["removed_assignment_id"] is None
+    assert payload["removed_person_id"] is None

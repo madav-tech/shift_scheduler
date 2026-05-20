@@ -6,10 +6,12 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from shift_scheduler.audit import write_log
 from shift_scheduler.auth import (
     SESSION_COOKIE_NAME,
     SessionExpired,
     SessionInvalid,
+    client_ip,
     require_editor,
     verify_session,
 )
@@ -236,6 +238,20 @@ def assign(
                         slot=slot, position=position,
                         note=(note.strip() if note else None) or None)
     db.add(a)
+    db.flush()
+    write_log(
+        db,
+        "assign",
+        {
+            "shift_date": d.isoformat(),
+            "kind": kind_enum.value,
+            "slot": slot,
+            "position": position,
+            "person_id": person_id,
+            "assignment_id": a.id,
+        },
+        actor_ip=client_ip(request),
+    )
     db.commit()
 
     span_start = d - timedelta(days=2)
@@ -264,6 +280,8 @@ def unassign(
     if slot not in ("commander", "operator"):
         raise HTTPException(status_code=400, detail="slot")
 
+    removed_assignment_id: int | None = None
+    removed_person_id: int | None = None
     shift = db.execute(
         select(Shift).where(Shift.date == d).where(Shift.kind == kind_enum.value)
     ).scalar_one_or_none()
@@ -275,8 +293,24 @@ def unassign(
             .where(ShiftAssignment.position == position)
         ).scalar_one_or_none()
         if a is not None:
+            removed_assignment_id = a.id
+            removed_person_id = a.person_id
             db.delete(a)
-            db.commit()
+
+    write_log(
+        db,
+        "unassign",
+        {
+            "shift_date": d.isoformat(),
+            "kind": kind_enum.value,
+            "slot": slot,
+            "position": position,
+            "removed_assignment_id": removed_assignment_id,
+            "removed_person_id": removed_person_id,
+        },
+        actor_ip=client_ip(request),
+    )
+    db.commit()
 
     span_start = d - timedelta(days=2)
     span_end = d + timedelta(days=14)
