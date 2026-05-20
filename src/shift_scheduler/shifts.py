@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
 from enum import StrEnum
+from typing import Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Jerusalem")
@@ -52,3 +54,47 @@ def shift_window(d: date_type, kind: ShiftKind | str) -> tuple[datetime, datetim
     start_dt = datetime(d.year, d.month, d.day, start_hour, 0, tzinfo=TZ)
     end_dt = datetime(end_date.year, end_date.month, end_date.day, end_hour, 0, tzinfo=TZ)
     return _to_fixed_offset(start_dt), _to_fixed_offset(end_dt)
+
+
+@dataclass(frozen=True, slots=True)
+class EligibilityResult:
+    eligible: bool
+    reason: str | None = None
+
+
+def _has_covering_period(periods: Sequence[Mapping], d: date_type) -> Mapping | None:
+    for p in periods:
+        if p["start_date"] <= d <= p["end_date"]:
+            return p
+    return None
+
+
+def is_eligible(
+    person: Mapping,
+    periods: Sequence[Mapping],
+    *,
+    shift_date: date_type,
+    kind: ShiftKind | str,
+    slot: str,
+) -> EligibilityResult:
+    """Pure-data eligibility check. `person` and `periods` are dict-like.
+
+    `person` keys: role, archived. `periods` items: start_date, end_date.
+    """
+    if isinstance(kind, str) and not isinstance(kind, ShiftKind):
+        kind = ShiftKind(kind)
+
+    if person.get("archived"):
+        return EligibilityResult(False, "archived")
+
+    if slot == "commander" and person.get("role") != "commander":
+        return EligibilityResult(False, "role_mismatch")
+
+    covering = _has_covering_period(periods, shift_date)
+    if covering is None:
+        return EligibilityResult(False, "no_period")
+
+    if kind == ShiftKind.MORNING and covering["start_date"] == shift_date:
+        return EligibilityResult(False, "arrival_morning")
+
+    return EligibilityResult(True, None)
