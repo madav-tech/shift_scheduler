@@ -1,0 +1,57 @@
+<div class="cell {% if cell.worst_severity %}tint-{{ cell.worst_severity.value }}{% endif %}"
+     id="cell-{{ cell.date }}-{{ cell.kind.value }}"
+     data-date="{{ cell.date }}" data-kind="{{ cell.kind.value }}">
+  {% set commander_filled = false %}
+  {% for person in cell.assigned if person.slot == 'commander' %}
+    {% set commander_filled = true %}
+    <div class="slot commander">
+      {{ person.name }}
+      {% if person.severity %}<span class="chip gap {{ person.severity.value }}">{{ person.severity.value }}</span>{% endif %}
+      {% if edit_mode %}
+        <form method="post" action="/shift/{{ cell.date }}/{{ cell.kind.value }}/unassign"
+              hx-post="/shift/{{ cell.date }}/{{ cell.kind.value }}/unassign"
+              hx-target="#cell-{{ cell.date }}-{{ cell.kind.value }}" hx-swap="outerHTML"
+              class="inline">
+          <input type="hidden" name="slot" value="commander">
+          <input type="hidden" name="position" value="{{ person.position }}">
+          <button type="submit" title="הסר">×</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if not commander_filled %}
+    <div class="slot empty commander"
+         {% if edit_mode %}data-pick-slot="commander" data-pick-position="0"{% endif %}>
+      {% if edit_mode %}<button type="button" class="picker-trigger"
+        data-date="{{ cell.date }}" data-kind="{{ cell.kind.value }}"
+        data-slot="commander" data-position="0">➕ הוסף מפקד</button>
+      {% else %}—{% endif %}
+    </div>
+  {% endif %}
+  {% set operator_positions = range(0, cell.capacity['operator']) | list %}
+  {% set filled_positions = cell.assigned | selectattr('slot','equalto','operator') | map(attribute='position') | list %}
+  {% for op in cell.assigned if op.slot == 'operator' %}
+    <div class="slot operator">
+      {{ op.name }}
+      {% if op.severity %}<span class="chip gap {{ op.severity.value }}">{{ op.severity.value }}</span>{% endif %}
+      {% if edit_mode %}
+        <form method="post" action="/shift/{{ cell.date }}/{{ cell.kind.value }}/unassign"
+              hx-post="/shift/{{ cell.date }}/{{ cell.kind.value }}/unassign"
+              hx-target="#cell-{{ cell.date }}-{{ cell.kind.value }}" hx-swap="outerHTML"
+              class="inline">
+          <input type="hidden" name="slot" value="operator">
+          <input type="hidden" name="position" value="{{ op.position }}">
+          <button type="submit" title="הסר">×</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% for pos in operator_positions if pos not in filled_positions %}
+    <div class="slot empty operator">
+      {% if edit_mode %}<button type="button" class="picker-trigger"
+        data-date="{{ cell.date }}" data-kind="{{ cell.kind.value }}"
+        data-slot="operator" data-position="{{ pos }}">➕ הוסף מפעיל</button>
+      {% else %}—{% endif %}
+    </div>
+  {% endfor %}
+</div>

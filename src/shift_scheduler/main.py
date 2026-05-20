@@ -21,7 +21,8 @@ STATIC_DIR = PACKAGE_DIR / "static"
 
 
 def _current_user_processor(request: Request) -> dict[str, str | None]:
-    settings = get_settings()
+    resolver = request.app.dependency_overrides.get(get_settings, get_settings)
+    settings = resolver()
     token = request.cookies.get(SESSION_COOKIE_NAME)
     if not token:
         return {"current_user": None}
@@ -65,11 +66,8 @@ def build_app() -> FastAPI:
     from shift_scheduler.routes import roster as roster_routes
     app.include_router(roster_routes.router)
 
-    @app.get("/schedule")
-    def schedule_placeholder(request: Request):
-        # Replaced in Task 22 with the real handler.
-        return templates.TemplateResponse(request, "base.html",
-                                          {"title": "לוח זמנים", "content": ""})
+    from shift_scheduler.routes import schedule as schedule_routes
+    app.include_router(schedule_routes.router)
 
     return app
 

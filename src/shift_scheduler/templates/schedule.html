@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="schedule-toolbar">
+  <a href="{{ prev_url }}">← אחורה</a>
+  <strong>{{ view.start }} — {{ view.end }}</strong>
+  <a href="{{ today_url }}">היום</a>
+  <a href="{{ next_url }}">קדימה →</a>
+</section>
+
+<div class="layout" id="layout-root">
+  <section class="schedule-grid" aria-label="לוח שיבוץ">
+    <div class="col-header">תאריך</div>
+    <div class="col-header">בוקר</div>
+    <div class="col-header">צהריים</div>
+    <div class="col-header">לילה</div>
+    {% for day in view.days %}
+      <div class="day-label">{{ day.date }}</div>
+      {% for kind in ['morning', 'noon', 'night'] %}
+        {% with cell = day.cells[kind] %}
+          {% include "components/cell.html" %}
+        {% endwith %}
+      {% endfor %}
+    {% endfor %}
+  </section>
+  {% include "components/sidebar.html" %}
+</div>
+{% endblock %}
