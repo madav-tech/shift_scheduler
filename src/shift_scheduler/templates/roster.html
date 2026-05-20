@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>סגל</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" action="/roster" class="stack">
+  <label>שם <input type="text" name="name" required></label>
+  <label>תפקיד
+    <select name="role">
+      <option value="operator">מפעיל/ה</option>
+      <option value="commander">מפקד/ת</option>
+    </select>
+  </label>
+  <button type="submit" class="primary">הוסף</button>
+</form>
+
+<table class="roster">
+  <thead><tr><th>שם</th><th>תפקיד</th><th></th></tr></thead>
+  <tbody>
+    {% for p in people %}
+      <tr>
+        <td><a href="/roster/{{ p.id }}">{{ p.name }}</a></td>
+        <td>{{ "מפקד/ת" if p.role == "commander" else "מפעיל/ה" }}</td>
+        <td><a href="/roster/{{ p.id }}">פרטים</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3">אין אנשים בסגל</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -62,6 +62,9 @@ def build_app() -> FastAPI:
     from shift_scheduler.routes import auth as auth_routes
     app.include_router(auth_routes.router)
 
+    from shift_scheduler.routes import roster as roster_routes
+    app.include_router(roster_routes.router)
+
     @app.get("/schedule")
     def schedule_placeholder(request: Request):
         # Replaced in Task 22 with the real handler.
