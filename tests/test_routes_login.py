@@ -27,7 +27,7 @@ def test_get_login_renders_form(client) -> None:
     r = client.get("/login")
     assert r.status_code == 200
     assert "סיסמה" in r.text
-    assert "name=\"password\"" in r.text
+    assert 'name="password"' in r.text
 
 
 def test_post_login_wrong_password_shows_error(client, authed_settings) -> None:

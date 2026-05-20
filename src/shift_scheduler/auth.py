@@ -1,11 +1,12 @@
 import time
 from collections import deque
 from threading import Lock
+from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from starlette.exceptions import HTTPException
 
@@ -64,8 +65,13 @@ def verify_session(token: str, *, secret: str, max_age_seconds: int) -> str:
 class LoginRateLimiter:
     """Per-IP failed-login tracker with sliding-window lockout. Resets on process restart."""
 
-    def __init__(self, *, max_failures: int = 5, window_seconds: int = 15 * 60,
-                 lockout_seconds: int = 15 * 60) -> None:
+    def __init__(
+        self,
+        *,
+        max_failures: int = 5,
+        window_seconds: int = 15 * 60,
+        lockout_seconds: int = 15 * 60,
+    ) -> None:
         self.max_failures = max_failures
         self.window_seconds = window_seconds
         self.lockout_seconds = lockout_seconds
@@ -127,13 +133,14 @@ def _current_subject(request: Request, settings: Settings) -> str | None:
     if not token:
         return None
     try:
-        return verify_session(token, secret=settings.session_secret,
-                              max_age_seconds=settings.session_max_age_seconds)
+        return verify_session(
+            token, secret=settings.session_secret, max_age_seconds=settings.session_max_age_seconds
+        )
     except (SessionInvalid, SessionExpired):
         return None
 
 
-def require_editor():
+def require_editor() -> Any:
     """FastAPI dependency: 302 to /login when not authenticated, otherwise pass through."""
 
     def _dep(request: Request, settings: Settings = Depends(get_settings)) -> str:  # noqa: B008
@@ -145,7 +152,7 @@ def require_editor():
     return Depends(_dep)
 
 
-def install_auth_exception_handler(app) -> None:
+def install_auth_exception_handler(app: FastAPI) -> None:
     @app.exception_handler(_RedirectToLogin)
-    async def _handle(_request: Request, _exc: _RedirectToLogin):  # type: ignore[no-untyped-def]
+    async def _handle(_request: Request, _exc: _RedirectToLogin) -> Response:
         return RedirectResponse(url="/login", status_code=302)

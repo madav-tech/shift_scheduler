@@ -15,8 +15,14 @@ def test_systemd_unit_has_required_directives() -> None:
 
 def test_install_md_documents_steps() -> None:
     txt = Path("deploy/INSTALL.md").read_text(encoding="utf-8")
-    for needle in ["set-password", "ADMIN_PASSWORD_HASH", "SESSION_SECRET",
-                   "alembic upgrade head", "systemctl", "Cloudflare"]:
+    for needle in [
+        "set-password",
+        "ADMIN_PASSWORD_HASH",
+        "SESSION_SECRET",
+        "alembic upgrade head",
+        "systemctl",
+        "Cloudflare",
+    ]:
         assert needle in txt, f"Missing {needle!r} in INSTALL.md"
 
 

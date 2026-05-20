@@ -13,6 +13,7 @@ def build_engine(url: str) -> Engine:
     engine = create_engine(url, connect_args=connect_args, future=True)
 
     if url.startswith("sqlite"):
+
         @event.listens_for(engine, "connect")
         def _set_sqlite_pragma(dbapi_conn, _record):  # type: ignore[no-untyped-def]
             cur = dbapi_conn.cursor()

@@ -61,12 +61,15 @@ def build_app() -> FastAPI:
         return RedirectResponse(url="/schedule", status_code=302)
 
     from shift_scheduler.routes import auth as auth_routes
+
     app.include_router(auth_routes.router)
 
     from shift_scheduler.routes import roster as roster_routes
+
     app.include_router(roster_routes.router)
 
     from shift_scheduler.routes import schedule as schedule_routes
+
     app.include_router(schedule_routes.router)
 
     return app

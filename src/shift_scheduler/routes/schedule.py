@@ -1,8 +1,9 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -66,7 +67,7 @@ def schedule_page(
     end: str | None = Query(None),
     db: Session = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
-):
+) -> Response:
     s_date = _parse_date(start) if start else _today_local()
     e_date = _parse_date(end) if end else (s_date + timedelta(days=DEFAULT_SPAN_DAYS - 1))
     if e_date < s_date:
@@ -103,8 +104,8 @@ def candidates(
     position: int = Query(0),
     q: str | None = Query(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     d = _parse_date(shift_date)
     try:
         kind_enum = ShiftKind(kind)
@@ -121,22 +122,30 @@ def candidates(
 
     rendered = []
     for p in candidates:
-        periods = [{"start_date": pp.start_date, "end_date": pp.end_date}
-                   for pp in p.presence_periods]
+        periods = [
+            {"start_date": pp.start_date, "end_date": pp.end_date} for pp in p.presence_periods
+        ]
         check: EligibilityResult = is_eligible(
-            {"role": p.role, "archived": p.archived}, periods,
-            shift_date=d, kind=kind_enum, slot=slot,
+            {"role": p.role, "archived": p.archived},
+            periods,
+            shift_date=d,
+            kind=kind_enum,
+            slot=slot,
         )
         if not check.eligible:
             continue
         existing = _person_assignments_in_range(
-            db, p.id, d - timedelta(days=2), d + timedelta(days=2),
+            db,
+            p.id,
+            d - timedelta(days=2),
+            d + timedelta(days=2),
         )
         sev = projected_worst_gap(existing, candidate_kind=kind_enum, candidate_date=d)
         rendered.append({"person": p, "severity": sev})
 
     return templates.TemplateResponse(
-        request, "components/picker.html",
+        request,
+        "components/picker.html",
         {
             "shift_date": shift_date,
             "kind": kind,
@@ -159,7 +168,9 @@ def _get_or_create_shift(db: Session, d: date_type, kind: ShiftKind) -> Shift:
     return shift
 
 
-def _render_cell(request: Request, view, d: date_type, kind: ShiftKind, edit_mode: bool) -> str:
+def _render_cell(
+    request: Request, view: Any, d: date_type, kind: ShiftKind, edit_mode: bool
+) -> str:
     day = next(day for day in view.days if day.date == d)
     cell = day.cells[kind.value]
     return templates.get_template("components/cell.html").render(
@@ -167,7 +178,7 @@ def _render_cell(request: Request, view, d: date_type, kind: ShiftKind, edit_mod
     )
 
 
-def _render_sidebar_oob(request: Request, view) -> str:
+def _render_sidebar_oob(request: Request, view: Any) -> str:
     body = templates.get_template("components/sidebar.html").render(
         {"view": view, "request": request}
     )
@@ -188,8 +199,8 @@ def assign(
     person_id: int = Form(...),
     note: str | None = Form(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     d = _parse_date(shift_date)
     try:
         kind_enum = ShiftKind(kind)
@@ -198,8 +209,10 @@ def assign(
     if slot not in ("commander", "operator"):
         raise HTTPException(status_code=400, detail="slot")
 
-    capacity = 1 if (kind_enum == ShiftKind.NIGHT and slot == "operator") else (
-        2 if slot == "operator" else 1
+    capacity = (
+        1
+        if (kind_enum == ShiftKind.NIGHT and slot == "operator")
+        else (2 if slot == "operator" else 1)
     )
     if position < 0 or position >= capacity:
         raise HTTPException(status_code=400, detail="position")
@@ -208,10 +221,16 @@ def assign(
     if person is None:
         raise HTTPException(status_code=404, detail="person")
 
-    periods = [{"start_date": pp.start_date, "end_date": pp.end_date}
-               for pp in person.presence_periods]
-    check = is_eligible({"role": person.role, "archived": person.archived}, periods,
-                        shift_date=d, kind=kind_enum, slot=slot)
+    periods = [
+        {"start_date": pp.start_date, "end_date": pp.end_date} for pp in person.presence_periods
+    ]
+    check = is_eligible(
+        {"role": person.role, "archived": person.archived},
+        periods,
+        shift_date=d,
+        kind=kind_enum,
+        slot=slot,
+    )
     if not check.eligible:
         raise HTTPException(status_code=400, detail=f"לא כשיר: {check.reason}")
 
@@ -228,15 +247,20 @@ def assign(
         db.flush()
 
     same_shift = db.execute(
-        select(ShiftAssignment).where(ShiftAssignment.shift_id == shift.id)
+        select(ShiftAssignment)
+        .where(ShiftAssignment.shift_id == shift.id)
         .where(ShiftAssignment.person_id == person_id)
     ).scalar_one_or_none()
     if same_shift is not None:
         raise HTTPException(status_code=400, detail="האדם כבר משובץ במשמרת זו")
 
-    a = ShiftAssignment(shift_id=shift.id, person_id=person_id,
-                        slot=slot, position=position,
-                        note=(note.strip() if note else None) or None)
+    a = ShiftAssignment(
+        shift_id=shift.id,
+        person_id=person_id,
+        slot=slot,
+        position=position,
+        note=(note.strip() if note else None) or None,
+    )
     db.add(a)
     db.flush()
     write_log(
@@ -270,8 +294,8 @@ def unassign(
     slot: str = Form(...),
     position: int = Form(...),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     d = _parse_date(shift_date)
     try:
         kind_enum = ShiftKind(kind)

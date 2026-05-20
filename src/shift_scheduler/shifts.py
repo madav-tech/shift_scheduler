@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
+from typing import Any
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Jerusalem")
@@ -63,7 +64,9 @@ class EligibilityResult:
     reason: str | None = None
 
 
-def _has_covering_period(periods: Sequence[Mapping], d: date_type) -> Mapping | None:
+def _has_covering_period(
+    periods: Sequence[Mapping[str, Any]], d: date_type
+) -> Mapping[str, Any] | None:
     for p in periods:
         if p["start_date"] <= d <= p["end_date"]:
             return p
@@ -71,8 +74,8 @@ def _has_covering_period(periods: Sequence[Mapping], d: date_type) -> Mapping | 
 
 
 def is_eligible(
-    person: Mapping,
-    periods: Sequence[Mapping],
+    person: Mapping[str, Any],
+    periods: Sequence[Mapping[str, Any]],
     *,
     shift_date: date_type,
     kind: ShiftKind | str,

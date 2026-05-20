@@ -107,9 +107,7 @@ def test_person_detail_404_when_missing(client, settings) -> None:
 
 def _create_person(client, settings, name="דן", role="operator") -> int:
     _login(client, settings)
-    r = client.post(
-        "/roster", data={"name": name, "role": role}, follow_redirects=False
-    )
+    r = client.post("/roster", data={"name": name, "role": role}, follow_redirects=False)
     return int(r.headers["location"].rsplit("/", 1)[-1])
 
 
@@ -145,6 +143,7 @@ def test_update_period_changes_dates(client, settings) -> None:
     )
     detail = client.get(f"/roster/{pid}")
     import re
+
     m = re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text)
     assert m
     period_id = int(m.group(1))
@@ -166,12 +165,9 @@ def test_delete_period_removes_it(client, settings) -> None:
     )
     detail = client.get(f"/roster/{pid}")
     import re
-    period_id = int(
-        re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1)
-    )
-    r = client.post(
-        f"/roster/{pid}/periods/{period_id}/delete", follow_redirects=False
-    )
+
+    period_id = int(re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1))
+    r = client.post(f"/roster/{pid}/periods/{period_id}/delete", follow_redirects=False)
     assert r.status_code == 302
     after = client.get(f"/roster/{pid}")
     assert "2026-06-01" not in after.text
@@ -238,9 +234,8 @@ def test_period_update_writes_audit(client, settings, engine_and_session) -> Non
     )
     detail = client.get(f"/roster/{pid}")
     import re
-    period_id = int(
-        re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1)
-    )
+
+    period_id = int(re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1))
     client.post(
         f"/roster/{pid}/periods/{period_id}",
         data={"start_date": "2026-06-02", "end_date": "2026-06-09"},
@@ -257,9 +252,8 @@ def test_period_delete_writes_audit(client, settings, engine_and_session) -> Non
     )
     detail = client.get(f"/roster/{pid}")
     import re
-    period_id = int(
-        re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1)
-    )
+
+    period_id = int(re.search(rf"/roster/{pid}/periods/(\d+)/delete", detail.text).group(1))
     client.post(f"/roster/{pid}/periods/{period_id}/delete")
     actions = [r.action for r in _audit_rows(engine_and_session)]
     assert actions == ["person_create", "period_create", "period_delete"]

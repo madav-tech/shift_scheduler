@@ -35,12 +35,15 @@ def test_cell_tint_warning_on_8h_chain(session) -> None:
     s_morn = Shift(date=date(2026, 6, 2), kind="morning")
     session.add_all([p, s_noon, s_morn])
     session.commit()
-    session.add_all([
-        ShiftAssignment(shift_id=s_noon.id, person_id=p.id, slot="commander", position=0),
-        ShiftAssignment(shift_id=s_morn.id, person_id=p.id, slot="commander", position=0),
-    ])
-    session.add(PresencePeriod(person_id=p.id, start_date=date(2026, 5, 1),
-                               end_date=date(2026, 6, 30)))
+    session.add_all(
+        [
+            ShiftAssignment(shift_id=s_noon.id, person_id=p.id, slot="commander", position=0),
+            ShiftAssignment(shift_id=s_morn.id, person_id=p.id, slot="commander", position=0),
+        ]
+    )
+    session.add(
+        PresencePeriod(person_id=p.id, start_date=date(2026, 5, 1), end_date=date(2026, 6, 30))
+    )
     session.commit()
 
     view = build_schedule_view(session, start=date(2026, 6, 1), end=date(2026, 6, 14))
@@ -56,11 +59,19 @@ def test_sidebar_lists_only_overlapping_non_archived(session) -> None:
     p_arch = Person(name="Arch", role="operator", archived=True)
     session.add_all([p_in, p_out, p_arch])
     session.commit()
-    session.add_all([
-        PresencePeriod(person_id=p_in.id, start_date=date(2026, 6, 5), end_date=date(2026, 6, 8)),
-        PresencePeriod(person_id=p_out.id, start_date=date(2026, 7, 1), end_date=date(2026, 7, 3)),
-        PresencePeriod(person_id=p_arch.id, start_date=date(2026, 6, 5), end_date=date(2026, 6, 8)),
-    ])
+    session.add_all(
+        [
+            PresencePeriod(
+                person_id=p_in.id, start_date=date(2026, 6, 5), end_date=date(2026, 6, 8)
+            ),
+            PresencePeriod(
+                person_id=p_out.id, start_date=date(2026, 7, 1), end_date=date(2026, 7, 3)
+            ),
+            PresencePeriod(
+                person_id=p_arch.id, start_date=date(2026, 6, 5), end_date=date(2026, 6, 8)
+            ),
+        ]
+    )
     session.commit()
 
     view = build_schedule_view(session, start=date(2026, 6, 1), end=date(2026, 6, 14))

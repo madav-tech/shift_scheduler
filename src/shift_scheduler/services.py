@@ -175,8 +175,8 @@ def build_schedule_view(db: Session, *, start: date, end: date) -> ScheduleView:
         )
         chain = build_rest_chain(assignments)
         items: list[ChainShift | ChainGap] = []
-        for i, shift in enumerate(chain.shifts):
-            items.append(shift)
+        for i, chain_shift in enumerate(chain.shifts):
+            items.append(chain_shift)
             if i < len(chain.gaps):
                 items.append(chain.gaps[i])
         sidebar_rows.append(SidebarChain(person=p, items=items))

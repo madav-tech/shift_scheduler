@@ -25,4 +25,5 @@ def test_set_password_mismatch_exits_nonzero() -> None:
 
 def test_module_main_dispatches() -> None:
     import shift_scheduler.__main__ as m
+
     assert hasattr(m, "cli")

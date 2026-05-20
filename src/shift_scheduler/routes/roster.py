@@ -1,8 +1,9 @@
 from datetime import date as date_type
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,17 +19,13 @@ VALID_ROLES = {"commander", "operator"}
 
 
 @router.get("/roster", response_class=HTMLResponse)
-def roster_index(request: Request, db: Session = Depends(get_db)):  # noqa: B008
+def roster_index(request: Request, db: Session = Depends(get_db)) -> Response:  # noqa: B008
     people = (
-        db.execute(
-            select(Person).where(Person.archived.is_(False)).order_by(Person.name)
-        )
+        db.execute(select(Person).where(Person.archived.is_(False)).order_by(Person.name))
         .scalars()
         .all()
     )
-    return templates.TemplateResponse(
-        request, "roster.html", {"title": "סגל", "people": people}
-    )
+    return templates.TemplateResponse(request, "roster.html", {"title": "סגל", "people": people})
 
 
 @router.post("/roster")
@@ -37,8 +34,8 @@ def roster_create(
     name: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     name = name.strip()
     if not name:
         return templates.TemplateResponse(
@@ -72,7 +69,7 @@ def person_detail(
     person_id: int,
     request: Request,
     db: Session = Depends(get_db),  # noqa: B008
-):
+) -> Response:
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=404, detail="person not found")
@@ -90,8 +87,8 @@ def person_update(
     name: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=404, detail="person not found")
@@ -117,8 +114,8 @@ def person_archive(
     person_id: int,
     request: Request,
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=404, detail="person not found")
@@ -148,8 +145,8 @@ def period_create(
     end_date: str = Form(...),
     note: str | None = Form(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=404, detail="person not found")
@@ -191,8 +188,8 @@ def period_update(
     end_date: str = Form(...),
     note: str | None = Form(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     pp = db.get(PresencePeriod, period_id)
     if pp is None or pp.person_id != person_id:
         raise HTTPException(status_code=404, detail="period not found")
@@ -226,8 +223,8 @@ def period_delete(
     period_id: int,
     request: Request,
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),  # noqa: B008
-):
+    _: Any = require_editor(),  # noqa: B008
+) -> Response:
     pp = db.get(PresencePeriod, period_id)
     if pp is None or pp.person_id != person_id:
         raise HTTPException(status_code=404, detail="period not found")

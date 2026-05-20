@@ -86,7 +86,13 @@ def test_shift_assignment_unique_person_per_shift(session) -> None:
 
 
 def test_edit_log_create(session) -> None:
-    e = EditLog(ip="1.2.3.4", action="assign", entity_type="shift_assignment", entity_id=1, payload_json='{"a":1}')
+    e = EditLog(
+        ip="1.2.3.4",
+        action="assign",
+        entity_type="shift_assignment",
+        entity_id=1,
+        payload_json='{"a":1}',
+    )
     session.add(e)
     session.commit()
     assert e.id is not None

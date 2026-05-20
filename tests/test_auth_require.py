@@ -43,8 +43,9 @@ def test_require_editor_redirects_without_cookie() -> None:
 def test_require_editor_allows_with_valid_cookie() -> None:
     settings = Settings(session_secret="t", admin_password_hash="x", cookie_secure=False)
     app = _build_app(settings)
-    token = sign_session("admin", secret=settings.session_secret,
-                         max_age_seconds=settings.session_max_age_seconds)
+    token = sign_session(
+        "admin", secret=settings.session_secret, max_age_seconds=settings.session_max_age_seconds
+    )
     client = TestClient(app, cookies={SESSION_COOKIE_NAME: token})
     r = client.get("/secret")
     assert r.status_code == 200

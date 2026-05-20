@@ -11,8 +11,7 @@ def cli() -> None:
 
 
 @cli.command("set-password")
-@click.option("--password", default=None,
-              help="Skip the prompt and use this value (CI use only).")
+@click.option("--password", default=None, help="Skip the prompt and use this value (CI use only).")
 def set_password(password: str | None) -> None:
     """Hash a new admin password and print the env-var line to set."""
     if password is None:

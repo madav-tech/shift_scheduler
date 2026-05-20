@@ -4,8 +4,9 @@ from shift_scheduler.config import Settings
 
 def _login(client, settings: Settings) -> None:
     settings.admin_password_hash = hash_password("hunter2")
-    token = sign_session("admin", secret=settings.session_secret,
-                         max_age_seconds=settings.session_max_age_seconds)
+    token = sign_session(
+        "admin", secret=settings.session_secret, max_age_seconds=settings.session_max_age_seconds
+    )
     client.cookies.set(SESSION_COOKIE_NAME, token)
 
 
@@ -17,8 +18,9 @@ def _add(client, name: str, role: str, start: str, end: str) -> int:
 
 
 def test_candidates_requires_auth(client) -> None:
-    r = client.get("/shift/2026-06-10/morning/candidates?slot=operator&position=0",
-                   follow_redirects=False)
+    r = client.get(
+        "/shift/2026-06-10/morning/candidates?slot=operator&position=0", follow_redirects=False
+    )
     assert r.status_code == 302
 
 
@@ -32,11 +34,11 @@ def test_candidates_filters_by_role_and_arrival(client, settings) -> None:
     assert r.status_code == 200
     assert "מפקד" in r.text
     assert "מפעיל" not in r.text  # operator can't fill commander slot
-    assert "ארן" not in r.text     # arrival day morning blocked
+    assert "ארן" not in r.text  # arrival day morning blocked
 
     r = client.get("/shift/2026-06-10/morning/candidates?slot=operator&position=0")
     assert "מפעיל" in r.text
-    assert "מפקד" in r.text   # commanders may fill operator slots
+    assert "מפקד" in r.text  # commanders may fill operator slots
     assert "ארן" not in r.text
     assert op_id and cm_id  # silence unused
 

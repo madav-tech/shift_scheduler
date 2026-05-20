@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -17,7 +17,7 @@ from shift_scheduler.db import Base
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Person(Base):
@@ -28,7 +28,9 @@ class Person(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
 
     presence_periods: Mapped[list["PresencePeriod"]] = relationship(
         back_populates="person",
@@ -39,9 +41,7 @@ class Person(Base):
 
 class PresencePeriod(Base):
     __tablename__ = "presence_period"
-    __table_args__ = (
-        CheckConstraint("end_date >= start_date", name="ck_period_end_ge_start"),
-    )
+    __table_args__ = (CheckConstraint("end_date >= start_date", name="ck_period_end_ge_start"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     person_id: Mapped[int] = mapped_column(
@@ -84,9 +84,7 @@ class ShiftAssignment(Base):
     shift_id: Mapped[int] = mapped_column(
         ForeignKey("shift.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    person_id: Mapped[int] = mapped_column(
-        ForeignKey("person.id"), nullable=False, index=True
-    )
+    person_id: Mapped[int] = mapped_column(ForeignKey("person.id"), nullable=False, index=True)
     slot: Mapped[str] = mapped_column(String, nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)

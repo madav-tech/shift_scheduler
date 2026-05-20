@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from shift_scheduler.audit import write_log
@@ -19,10 +19,8 @@ rate_limiter = LoginRateLimiter()
 
 
 @router.get("/login")
-def get_login(request: Request):
-    return templates.TemplateResponse(
-        request, "login.html", {"title": "התחברות", "error": None}
-    )
+def get_login(request: Request) -> Response:
+    return templates.TemplateResponse(request, "login.html", {"title": "התחברות", "error": None})
 
 
 @router.post("/login")
@@ -31,7 +29,7 @@ def post_login(
     password: str = Form(...),
     settings: Settings = Depends(get_settings),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
-):
+) -> Response:
     ip = client_ip(request)
     if rate_limiter.is_locked(ip):
         write_log(db, "login_failed", {"reason": "rate_limited"}, actor_ip=ip)
@@ -79,7 +77,7 @@ def post_login(
 def post_logout(
     request: Request,
     db: Session = Depends(get_db),  # noqa: B008
-):
+) -> Response:
     write_log(db, "logout", {}, actor_ip=client_ip(request))
     db.commit()
     response = RedirectResponse(url="/login", status_code=302)
