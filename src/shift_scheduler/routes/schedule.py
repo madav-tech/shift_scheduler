@@ -1,7 +1,7 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from shift_scheduler.auth import (
 from shift_scheduler.config import Settings, get_settings
 from shift_scheduler.db import get_db
 from shift_scheduler.main import templates
-from shift_scheduler.models import Person
+from shift_scheduler.models import Person, Shift, ShiftAssignment
 from shift_scheduler.services import _person_assignments_in_range, build_schedule_view
 from shift_scheduler.shifts import (
     TZ,
@@ -144,3 +144,103 @@ def candidates(
             "q": q or "",
         },
     )
+
+
+def _get_or_create_shift(db: Session, d: date_type, kind: ShiftKind) -> Shift:
+    shift = db.execute(
+        select(Shift).where(Shift.date == d).where(Shift.kind == kind.value)
+    ).scalar_one_or_none()
+    if shift is None:
+        shift = Shift(date=d, kind=kind.value)
+        db.add(shift)
+        db.flush()
+    return shift
+
+
+def _render_cell(request: Request, view, d: date_type, kind: ShiftKind, edit_mode: bool) -> str:
+    day = next(day for day in view.days if day.date == d)
+    cell = day.cells[kind.value]
+    return templates.get_template("components/cell.html").render(
+        {"cell": cell, "edit_mode": edit_mode, "request": request}
+    )
+
+
+def _render_sidebar_oob(request: Request, view) -> str:
+    body = templates.get_template("components/sidebar.html").render(
+        {"view": view, "request": request}
+    )
+    return body.replace(
+        '<aside class="sidebar"',
+        '<aside class="sidebar" hx-swap-oob="outerHTML"',
+        1,
+    )
+
+
+@router.post("/shift/{shift_date}/{kind}/assign", response_class=HTMLResponse)
+def assign(
+    shift_date: str,
+    kind: str,
+    request: Request,
+    slot: str = Form(...),
+    position: int = Form(...),
+    person_id: int = Form(...),
+    note: str | None = Form(None),
+    db: Session = Depends(get_db),  # noqa: B008
+    _=require_editor(),  # noqa: B008
+):
+    d = _parse_date(shift_date)
+    try:
+        kind_enum = ShiftKind(kind)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="kind") from e
+    if slot not in ("commander", "operator"):
+        raise HTTPException(status_code=400, detail="slot")
+
+    capacity = 1 if (kind_enum == ShiftKind.NIGHT and slot == "operator") else (
+        2 if slot == "operator" else 1
+    )
+    if position < 0 or position >= capacity:
+        raise HTTPException(status_code=400, detail="position")
+
+    person = db.get(Person, person_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail="person")
+
+    periods = [{"start_date": pp.start_date, "end_date": pp.end_date}
+               for pp in person.presence_periods]
+    check = is_eligible({"role": person.role, "archived": person.archived}, periods,
+                        shift_date=d, kind=kind_enum, slot=slot)
+    if not check.eligible:
+        raise HTTPException(status_code=400, detail=f"לא כשיר: {check.reason}")
+
+    shift = _get_or_create_shift(db, d, kind_enum)
+
+    existing_slot = db.execute(
+        select(ShiftAssignment)
+        .where(ShiftAssignment.shift_id == shift.id)
+        .where(ShiftAssignment.slot == slot)
+        .where(ShiftAssignment.position == position)
+    ).scalar_one_or_none()
+    if existing_slot is not None:
+        db.delete(existing_slot)
+        db.flush()
+
+    same_shift = db.execute(
+        select(ShiftAssignment).where(ShiftAssignment.shift_id == shift.id)
+        .where(ShiftAssignment.person_id == person_id)
+    ).scalar_one_or_none()
+    if same_shift is not None:
+        raise HTTPException(status_code=400, detail="האדם כבר משובץ במשמרת זו")
+
+    a = ShiftAssignment(shift_id=shift.id, person_id=person_id,
+                        slot=slot, position=position,
+                        note=(note.strip() if note else None) or None)
+    db.add(a)
+    db.commit()
+
+    span_start = d - timedelta(days=2)
+    span_end = d + timedelta(days=14)
+    view = build_schedule_view(db, start=span_start, end=span_end)
+    cell_html = _render_cell(request, view, d, kind_enum, edit_mode=True)
+    sidebar_html = _render_sidebar_oob(request, view)
+    return HTMLResponse(content=cell_html + sidebar_html)
