@@ -36,7 +36,7 @@ def roster_create(
     name: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     name = name.strip()
     if not name:
@@ -82,7 +82,7 @@ def person_update(
     name: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     person = db.get(Person, person_id)
     if person is None:
@@ -102,7 +102,7 @@ def person_update(
 def person_archive(
     person_id: int,
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     person = db.get(Person, person_id)
     if person is None:
@@ -126,7 +126,7 @@ def period_create(
     end_date: str = Form(...),
     note: str | None = Form(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     person = db.get(Person, person_id)
     if person is None:
@@ -154,7 +154,7 @@ def period_update(
     end_date: str = Form(...),
     note: str | None = Form(None),
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     pp = db.get(PresencePeriod, period_id)
     if pp is None or pp.person_id != person_id:
@@ -175,7 +175,7 @@ def period_delete(
     person_id: int,
     period_id: int,
     db: Session = Depends(get_db),  # noqa: B008
-    _=require_editor(),
+    _=require_editor(),  # noqa: B008
 ):
     pp = db.get(PresencePeriod, period_id)
     if pp is None or pp.person_id != person_id:
