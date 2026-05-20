@@ -1,0 +1,77 @@
+:root {
+  --bg: #f6f5f2;
+  --fg: #1c1c1c;
+  --muted: #6b6b6b;
+  --border: #d8d4cc;
+  --accent: #2b6cb0;
+  --critical-bg: #fde2e2;
+  --critical-fg: #9a1f1f;
+  --warning-bg: #fff3cd;
+  --warning-fg: #8a6100;
+  --ok-bg: #e1f3e3;
+  --ok-fg: #265d2b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+  font-family: system-ui, "Segoe UI", "Arial Hebrew", Tahoma, sans-serif; font-size: 15px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.topbar { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border); background: white; }
+.topbar .brand { font-weight: 700; }
+.topbar nav { margin-inline-start: auto; display: flex; gap: 0.75rem; align-items: center; }
+.topbar form.inline { display: inline; }
+.topbar button { background: none; border: 1px solid var(--border); border-radius: 4px;
+  padding: 0.25rem 0.6rem; cursor: pointer; font: inherit; }
+
+main { padding: 1rem; }
+
+.schedule-grid { display: grid; grid-template-columns: 8rem repeat(3, 1fr); gap: 0.4rem;
+  align-items: stretch; }
+.schedule-grid .col-header { font-weight: 600; padding: 0.4rem; border-bottom: 1px solid var(--border); }
+.schedule-grid .day-label { padding: 0.4rem; font-weight: 600; }
+.cell { background: white; border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.4rem; min-height: 4.5rem; }
+.cell.tint-critical { background: var(--critical-bg); border-color: #f0b1b1; }
+.cell.tint-warning { background: var(--warning-bg); border-color: #e3c98a; }
+.cell .slot { display: flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0; }
+.cell .slot.empty { color: var(--muted); }
+.cell .commander::before { content: "★ "; color: #c19a00; }
+
+.layout { display: grid; grid-template-columns: 1fr 18rem; gap: 1rem; }
+.layout.sidebar-collapsed { grid-template-columns: 1fr 2rem; }
+.sidebar { background: white; border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.6rem; max-height: 80vh; overflow: auto; }
+.sidebar header { display: flex; align-items: center; gap: 0.5rem; }
+.sidebar .toggle { margin-inline-start: auto; }
+.sidebar.collapsed { padding: 0.3rem; }
+.sidebar.collapsed .body { display: none; }
+.sidebar .person-row { padding: 0.3rem 0; border-bottom: 1px dashed var(--border); }
+.sidebar .person-row:last-child { border-bottom: 0; }
+.chip { display: inline-block; padding: 0 0.4rem; border-radius: 999px; font-size: 0.85em; }
+.chip.shift { background: #eef2f7; }
+.chip.gap.critical { background: var(--critical-bg); color: var(--critical-fg); }
+.chip.gap.warning { background: var(--warning-bg); color: var(--warning-fg); }
+.chip.gap.ok { background: var(--ok-bg); color: var(--ok-fg); }
+
+.picker { position: absolute; background: white; border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  min-width: 16rem; max-height: 18rem; overflow: auto; z-index: 50; }
+.picker input[type="search"] { width: 100%; padding: 0.3rem; border: 1px solid var(--border);
+  border-radius: 4px; font: inherit; margin-bottom: 0.35rem; }
+.picker .candidate { display: flex; gap: 0.5rem; padding: 0.2rem 0.3rem; cursor: pointer;
+  border-radius: 4px; align-items: center; }
+.picker .candidate:hover { background: #f0f0ee; }
+.picker .gap-projection { margin-inline-start: auto; font-size: 0.85em; }
+
+form.stack > * { display: block; margin-block: 0.5rem; }
+input[type="text"], input[type="password"], input[type="date"], select, textarea {
+  padding: 0.35rem; border: 1px solid var(--border); border-radius: 4px; font: inherit; }
+button.primary { background: var(--accent); color: white; border: 0; border-radius: 4px;
+  padding: 0.4rem 0.9rem; cursor: pointer; }
+.error { color: var(--critical-fg); background: var(--critical-bg); padding: 0.4rem 0.6rem;
+  border-radius: 4px; }
+table.roster { width: 100%; border-collapse: collapse; background: white; }
+table.roster th, table.roster td { padding: 0.4rem; border-bottom: 1px solid var(--border); text-align: start; }
